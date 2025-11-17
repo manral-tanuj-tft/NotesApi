@@ -36,22 +36,12 @@ namespace NotesApi.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetAll([FromQuery(Name = "q")] string? keyword)
+        public async Task<IActionResult> GetAll()
         {
-            IQueryable<Note> query = _db.Notes;
-
-            if (!string.IsNullOrWhiteSpace(keyword))
-            {
-                string k = keyword.ToLower();
-                query = query.Where(n =>
-                    (n.Title != null && n.Title.ToLower().Contains(k)) ||
-                    (n.Content != null && n.Content.ToLower().Contains(k))
-                );
-            }
-
-            var notes = await query.ToListAsync();
-            return Ok(notes);
+            var list = await _db.Notes.ToListAsync();
+            return Ok(list);
         }
+
 
         [HttpGet("{id:int}")]
         public async Task<IActionResult> GetById(int id)
@@ -92,6 +82,24 @@ namespace NotesApi.Controllers
             await _db.SaveChangesAsync();
 
             return Ok(note);
+        }
+
+        [HttpGet("search")]
+        public async Task<IActionResult> Search([FromQuery(Name = "q")] string keyword)
+        {
+            if (string.IsNullOrWhiteSpace(keyword))
+                return BadRequest(new { message = "Query parameter 'q' is required." });
+
+            string k = keyword.ToLower();
+
+            var results = await _db.Notes
+                .Where(n =>
+                    (n.Title != null && n.Title.ToLower().Contains(k)) ||
+                    (n.Content != null && n.Content.ToLower().Contains(k))
+                )
+                .ToListAsync();
+
+            return Ok(results);
         }
     }
 }
