@@ -36,13 +36,24 @@ namespace NotesApi.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetAll()
+        public async Task<IActionResult> GetAll([FromQuery(Name = "q")] string? keyword)
         {
-            var list = await _db.Notes.ToListAsync();
-            return Ok(list);
+            IQueryable<Note> query = _db.Notes;
+
+            if (!string.IsNullOrWhiteSpace(keyword))
+            {
+                string k = keyword.ToLower();
+                query = query.Where(n =>
+                    (n.Title != null && n.Title.ToLower().Contains(k)) ||
+                    (n.Content != null && n.Content.ToLower().Contains(k))
+                );
+            }
+
+            var notes = await query.ToListAsync();
+            return Ok(notes);
         }
 
-        [HttpGet("{id}")]
+        [HttpGet("{id:int}")]
         public async Task<IActionResult> GetById(int id)
         {
             var note = await _db.Notes.FindAsync(id);
@@ -63,6 +74,24 @@ namespace NotesApi.Controllers
             await _db.SaveChangesAsync();
 
             return Ok(new { message = "Note deleted successfully." });
+        }
+
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdateNote(int id, [FromBody] Note input)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var note = await _db.Notes.FindAsync(id);
+            if (note == null)
+                return NotFound(new { message = "Note not found." });
+
+            note.Title = input.Title;
+            note.Content = input.Content;
+
+            await _db.SaveChangesAsync();
+
+            return Ok(note);
         }
     }
 }
